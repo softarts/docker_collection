@@ -1,0 +1,90 @@
+---
+# pvc
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  # This name uniquely identifies the PVC. This is used in deployment.
+  name: hadoop-pv-claim
+spec:
+  # Read more about access modes here: http://kubernetes.io/docs/user-guide/persistent-volumes/#access-modes
+  accessModes:
+    # The volume is mounted as read-write by a single node
+    - ReadWriteOnce
+  resources:
+    # This is the request for storage. Should be available in the cluster.
+    requests:
+      storage: 5Gi
+  storageClassName: "local-path"
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  # This name uniquely identifies the Deployment
+  name: hadoop
+spec:
+  selector:
+    matchLabels:
+      app: hadoop # has to match .spec.template.metadata.labels
+  strategy:
+    # Specifies the strategy used to replace old Pods by new ones
+    # Refer: https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#strategy
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        # This label is used as a selector in Service definition
+        app: hadoop
+    spec:
+      # Volumes used by this deployment
+      volumes:
+      - name: data
+        # This volume is based on PVC
+        persistentVolumeClaim:
+          # Name of the PVC created earlier
+          claimName: hadoop-pv-claim
+      containers:
+      - name: namenode
+        # Volume mounts for this container
+        volumeMounts:
+        # Volume 'data' is mounted to path '/data'
+        - name: data 
+          mountPath: "/hadoop/data"
+        # Pulls the lastest Minio image from Docker Hub
+        image: hdfs-namenode:latest
+        imagePullPolicy: Never
+        args:
+        - server
+        - /data
+        env:         
+        - name: HADOOP_CONF_DIR
+          value: "/etc/hadoop"
+        - name: USER
+          value: "root"        
+        ports:
+        - containerPort: 9000
+        - containerPort: 50070
+        
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  # This name uniquely identifies the service
+  name: hadoop
+spec:
+  type: NodePort
+  ports:
+    - name: webui
+      port: 50070
+      targetPort: 50070
+      protocol: TCP
+      nodePort: 31570
+    - name: hdfs
+      port: 9000
+      targetPort: 9000
+      protocol: TCP       
+  selector:    
+    app: hadoop

@@ -1,0 +1,49 @@
+version: "2"
+services:
+
+  mongors1n1:
+    container_name: mongors1n1
+    image: mongo:3.6
+    command: mongod --noprealloc --smallfiles --shardsvr --replSet mongors1 --dbpath /data/db --nojournal --oplogSize 16 --noauth --wiredTigerCacheSizeGB 1.5
+    environment:
+      TERM: xterm
+    volumes:
+      #- /etc/localtime:/etc/localtime:ro
+      - ./data/mongors1n1:/data/db
+      - ./scripts:/scripts
+
+  mongors2n1:
+    container_name: mongors2n1
+    image: mongo:3.6
+    command: mongod --noprealloc --smallfiles --shardsvr --replSet mongors2 --dbpath /data/db --nojournal --oplogSize 16 --noauth --wiredTigerCacheSizeGB 1.5
+    environment:
+      TERM: xterm
+    volumes:
+      #- /etc/localtime:/etc/localtime:ro
+      - ./data/mongors2n1:/data/db
+      - ./scripts:/scripts
+
+  mongocfg1:
+    container_name: mongocfg1
+    image: mongo:3.6
+    command: mongod --noprealloc --smallfiles --replSet cfgrs --dbpath /data/db --configsvr --noauth --port 27017 --wiredTigerCacheSizeGB 1.5
+    environment:
+      TERM: xterm
+    expose:
+         - "27017"
+    volumes:
+      #- /etc/localtime:/etc/localtime:ro
+      - ./data/mongocfg1:/data/db
+      - ./scripts:/scripts
+
+  mongos1:
+    container_name: mongos1
+    image: mongo:3.6
+    depends_on:
+      - mongocfg1
+    command: mongos --configdb cfgrs/mongocfg1:27017 --port 27017 --bind_ip_all
+    ports:
+      - 27017:27017
+    volumes:
+      #- /etc/localtime:/etc/localtime:ro
+      - ./scripts:/scripts

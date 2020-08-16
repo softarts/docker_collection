@@ -1,0 +1,71 @@
+
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  # This name uniquely identifies the Deployment
+  name: zep
+spec:
+  selector:
+    matchLabels:
+      app: zep # has to match .spec.template.metadata.labels
+  strategy:
+    # Specifies the strategy used to replace old Pods by new ones
+    # Refer: https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#strategy
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        # This label is used as a selector in Service definition
+        app: zep
+    spec:
+      # Volumes used by this deployment
+      volumes:
+      - name: data
+        # This volume is based on PVC
+        persistentVolumeClaim:
+          # Name of the PVC created earlier
+          claimName: zeppelin-pv-claim
+      containers:
+      - name: zep
+        # Volume mounts for this container
+        volumeMounts:
+        # Volume 'data' is mounted to path '/data'
+        - name: data 
+          mountPath: "/notebook"
+        # Pulls the lastest Minio image from Docker Hub
+        image: zhouruisg/zeppelin:0.8.1
+        imagePullPolicy: Never
+        env:         
+        - name: ZEPPELIN_NOTEBOOK_DIR
+          value: "/notebook"
+        - name: ZEPPELIN_ADDR
+          value: "0.0.0.0"        
+        ports:
+        - containerPort: 8080
+        - containerPort: 4040
+        
+        
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  # This name uniquely identifies the service
+  name: zep
+spec:
+  type: NodePort
+  ports:
+    - name: webui
+      port: 8080
+      targetPort: 8080
+      protocol: TCP
+      nodePort: 31571
+    - name: sparkui
+      port: 4040
+      targetPort: 4040
+      protocol: TCP  
+      nodePort: 31572    
+  selector:    
+    app: zep

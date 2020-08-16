@@ -1,0 +1,38 @@
+#kubectl run rabbitmq --image=rabbitmq:management --expose --port=15672 --restart=Never --dry-run -o yaml > rabbitmq.yml
+
+apiVersion: v1
+kind: Service
+metadata:  
+  name: rabbitmq
+spec:
+  type: NodePort
+  ports:
+  - port: 15672
+    nodePort: 31672
+    protocol: TCP
+    targetPort: 15672
+  selector:
+    run: rabbitmq
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:  
+  name: rabbitmq
+spec:
+  selector:
+    matchLabels:
+      app: rabbitmq
+  strategy:    
+    type: Recreate
+  template:
+    metadata:
+      labels:        
+        app: rabbitmq
+    spec:      
+      containers:
+      - image: rabbitmq:management
+        name: rabbitmq
+        ports:
+        - containerPort: 15672
+        resources: {}
